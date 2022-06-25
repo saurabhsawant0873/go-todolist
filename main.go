@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -106,6 +107,31 @@ func createTodoList(w http.ResponseWriter, r *http.Request) {
 		"message": "todo created sucessfully",
 		"todo_id": tododbData.ID.Hex(),
 	})
+}
+
+func deleteTodoList(w http.ResponseWriter, r *http.Request) {
+
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	if !bson.IsObjectIdHex(id) {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "This id is invalid",
+		})
+		return
+	}
+
+	if err := db.C(collectionname).RemoveId(bson.ObjectIdHex(id)); err != nil {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "Failed to delete todo",
+			"error":   err,
+		})
+		return
+	}
+
+	render.JSON(w, http.StatusOK, renderer.M{
+		"message": "todo delete sucessfully",
+	})
+
 }
 
 // checkError - Check and print if any errors
