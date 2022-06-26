@@ -30,18 +30,18 @@ const (
 type (
 	// DB Structure for todolist
 	todoDbModel struct {
-		ID        bson.ObjectId `bson: _id, omitempty`
-		Title     string        `bson: "title"`
-		Completed bool          `bson : "complete"`
-		CreatedAt time.Time     `bson : "createdat"`
+		ID        bson.ObjectId `bson:"_id,omitempty"`
+		Title     string        `bson:"title"`
+		Completed bool          `bson:"completed"`
+		CreatedAt time.Time     `bson:"createdat"`
 	}
 
 	// UI Structure for todolist
 	todoUIModel struct {
-		ID        bson.ObjectId `json: "id"`
-		Title     string        `json: "title"`
-		Completed bool          `json: "completed"`
-		CreatedAt time.Time     `json: createdat`
+		ID        string    `json:"id"`
+		Title     string    `json:"title"`
+		Completed bool      `json:"completed"`
+		CreatedAt time.Time `json:"createdat"`
 	}
 )
 
@@ -67,7 +67,7 @@ func getTodoList(w http.ResponseWriter, r *http.Request) {
 
 	for _, data := range todoData {
 		todoDataToUI = append(todoDataToUI, todoUIModel{
-			ID:        data.ID,
+			ID:        data.ID.Hex(),
 			Title:     data.Title,
 			Completed: data.Completed,
 			CreatedAt: data.CreatedAt,
@@ -89,7 +89,7 @@ func createTodoList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tododbData := &todoDbModel{
-		ID:        todoUIData.ID,
+		ID:        bson.ObjectIdHex(todoUIData.ID),
 		Title:     todoUIData.Title,
 		Completed: todoUIData.Completed,
 		CreatedAt: time.Now(),
@@ -225,7 +225,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Listen on port : %d", port)
+		log.Print("Listen on port : ", port)
 		if err := server.ListenAndServe(); err != nil {
 			log.Printf("Listen : %s \n", err)
 		}
