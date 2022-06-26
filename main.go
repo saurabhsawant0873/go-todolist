@@ -134,6 +134,47 @@ func deleteTodoList(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func updatetodoList(w http.ResponseWriter, r *http.Request) {
+
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	if !bson.IsObjectIdHex(id) {
+		render.JSON(w, http.StatusBadRequest, renderer.M{
+			"message": "The id is invalid",
+		})
+		return
+	}
+
+	tododata := todoUIModel{}
+
+	if err := json.NewDecoder(r.Body).Decode(&tododata); err != nil {
+		render.JSON(w, http.StatusProcessing, err)
+		return
+	}
+
+	if tododata.Title == "" {
+		render.JSON(w, http.StatusBadRequest, renderer.M{
+			"message": "the title field id required",
+		})
+		return
+	}
+
+	if err := db.C(collectionname).Update(
+		bson.M{"_id": bson.ObjectIdHex(id)},
+		bson.M{"title": tododata.Title, "completed": tododata.Completed},
+	); err != nil {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "failed to update todo",
+			"error":   err,
+		})
+		return
+	}
+
+	render.JSON(w, http.StatusOK, renderer.M{
+		"message": "todolist Updated sucessfully",
+	})
+}
+
 // checkError - Check and print if any errors
 func checkError(err error) {
 	if err != nil {
@@ -173,7 +214,7 @@ func main() {
 	homeRouter.Use(middleware.Logger)
 
 	homeRouter.Get("/", homeHandler)
-	homeRouter.Mount("/todo", todolistHandler)
+	homeRouter.Mount("/todo", todolistHandler())
 
 	server := &http.Server{
 		Addr:         port,
