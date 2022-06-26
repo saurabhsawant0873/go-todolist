@@ -22,9 +22,9 @@ var db *mgo.Database
 
 const (
 	hostname       string = "localhost:27017"
-	port           string = ":9000"
+	port           string = ":9010"
 	dbname         string = "tododb"
-	collectionname string = "todo"
+	collectionname string = "todolist"
 )
 
 type (
@@ -33,7 +33,7 @@ type (
 		ID        bson.ObjectId `bson:"_id,omitempty"`
 		Title     string        `bson:"title"`
 		Completed bool          `bson:"completed"`
-		CreatedAt time.Time     `bson:"createdat"`
+		CreatedAt time.Time     `bson:"createAt"`
 	}
 
 	// UI Structure for todolist
@@ -41,14 +41,14 @@ type (
 		ID        string    `json:"id"`
 		Title     string    `json:"title"`
 		Completed bool      `json:"completed"`
-		CreatedAt time.Time `json:"createdat"`
+		CreatedAt time.Time `json:"created_at"`
 	}
 )
 
 // homeHandler - render homepage template file for todolist
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 
-	err := render.Template(w, http.StatusProcessing, []string{"static/home.tpl"}, nil)
+	err := render.Template(w, http.StatusOK, []string{"static/home.tpl"}, nil)
 	checkError(err)
 }
 
@@ -88,14 +88,14 @@ func createTodoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tododbData := &todoDbModel{
-		ID:        bson.ObjectIdHex(todoUIData.ID),
+	tododbData := todoDbModel{
+		ID:        bson.NewObjectId(),
 		Title:     todoUIData.Title,
 		Completed: todoUIData.Completed,
 		CreatedAt: time.Now(),
 	}
 
-	if err := db.C(collectionname).Insert(tododbData); err != nil {
+	if err := db.C(collectionname).Insert(&tododbData); err != nil {
 		render.JSON(w, http.StatusProcessing, renderer.M{
 			"message": "Failed to save to do",
 			"error":   err,
@@ -190,17 +190,17 @@ func init() {
 	// Monotonic -> Somewhere between Strong and Eventual
 	// Eventual -> Focusses more on loadbalancing
 	session.SetMode(mgo.Monotonic, true)
-	session.DB(dbname)
+	db = session.DB(dbname)
 }
 
 func todolistHandler() http.Handler {
 
 	groupRouter := chi.NewRouter()
 	groupRouter.Group(func(r chi.Router) {
-		groupRouter.Get("/", getTodoList)
-		groupRouter.Post("/", createTodoList)
-		groupRouter.Put("/{id}", updatetodoList)
-		groupRouter.Delete("/{id}", deleteTodoList)
+		r.Get("/", getTodoList)
+		r.Post("/", createTodoList)
+		r.Put("/{id}", updatetodoList)
+		r.Delete("/{id}", deleteTodoList)
 	})
 	return groupRouter
 }
