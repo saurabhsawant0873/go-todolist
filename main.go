@@ -45,6 +45,18 @@ type (
 	}
 )
 
+// init - initialize db and renderer
+func init() {
+	render = renderer.New()
+	session, err := mgo.Dial(hostname)
+	checkError(err)
+	// Three modes: Strong -> More stability with read and write operations
+	// Monotonic -> Somewhere between Strong and Eventual
+	// Eventual -> Focusses more on loadbalancing
+	session.SetMode(mgo.Monotonic, true)
+	db = session.DB(dbname)
+}
+
 // homeHandler - render homepage template file for todolist
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -52,33 +64,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 }
 
-func getTodoList(w http.ResponseWriter, r *http.Request) {
-	todoData := []todoDbModel{}
-
-	if err := db.C(collectionname).Find(bson.M{}).All(&todoData); err != nil {
-		render.JSON(w, http.StatusProcessing, renderer.M{
-			"message": "failed to fetch todo",
-			"error":   err,
-		})
-		return
-	}
-
-	todoDataToUI := []todoUIModel{}
-
-	for _, data := range todoData {
-		todoDataToUI = append(todoDataToUI, todoUIModel{
-			ID:        data.ID.Hex(),
-			Title:     data.Title,
-			Completed: data.Completed,
-			CreatedAt: data.CreatedAt,
-		})
-	}
-
-	render.JSON(w, http.StatusOK, renderer.M{
-		"data": todoDataToUI,
-	})
-}
-
+// createTodoList - Add entry to todolist
 func createTodoList(w http.ResponseWriter, r *http.Request) {
 
 	todoUIData := todoUIModel{}
@@ -109,31 +95,7 @@ func createTodoList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func deleteTodoList(w http.ResponseWriter, r *http.Request) {
-
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-
-	if !bson.IsObjectIdHex(id) {
-		render.JSON(w, http.StatusProcessing, renderer.M{
-			"message": "This id is invalid",
-		})
-		return
-	}
-
-	if err := db.C(collectionname).RemoveId(bson.ObjectIdHex(id)); err != nil {
-		render.JSON(w, http.StatusProcessing, renderer.M{
-			"message": "Failed to delete todo",
-			"error":   err,
-		})
-		return
-	}
-
-	render.JSON(w, http.StatusOK, renderer.M{
-		"message": "todo delete sucessfully",
-	})
-
-}
-
+// updatetodoList - update todolist entry
 func updatetodoList(w http.ResponseWriter, r *http.Request) {
 
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
@@ -175,22 +137,65 @@ func updatetodoList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// getTodoList - get all entries of todolist
+func getTodoList(w http.ResponseWriter, r *http.Request) {
+	todoData := []todoDbModel{}
+
+	if err := db.C(collectionname).Find(bson.M{}).All(&todoData); err != nil {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "failed to fetch todo",
+			"error":   err,
+		})
+		return
+	}
+
+	todoDataToUI := []todoUIModel{}
+
+	for _, data := range todoData {
+		todoDataToUI = append(todoDataToUI, todoUIModel{
+			ID:        data.ID.Hex(),
+			Title:     data.Title,
+			Completed: data.Completed,
+			CreatedAt: data.CreatedAt,
+		})
+	}
+
+	render.JSON(w, http.StatusOK, renderer.M{
+		"data": todoDataToUI,
+	})
+}
+
+// deleteTodoList -Delete entry from todolist
+func deleteTodoList(w http.ResponseWriter, r *http.Request) {
+
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+
+	if !bson.IsObjectIdHex(id) {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "This id is invalid",
+		})
+		return
+	}
+
+	if err := db.C(collectionname).RemoveId(bson.ObjectIdHex(id)); err != nil {
+		render.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "Failed to delete todo",
+			"error":   err,
+		})
+		return
+	}
+
+	render.JSON(w, http.StatusOK, renderer.M{
+		"message": "todo delete sucessfully",
+	})
+
+}
+
 // checkError - Check and print if any errors
 func checkError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func init() {
-	render = renderer.New()
-	session, err := mgo.Dial(hostname)
-	checkError(err)
-	// Three modes: Strong -> More stability with read and write operations
-	// Monotonic -> Somewhere between Strong and Eventual
-	// Eventual -> Focusses more on loadbalancing
-	session.SetMode(mgo.Monotonic, true)
-	db = session.DB(dbname)
 }
 
 func todolistHandler() http.Handler {
